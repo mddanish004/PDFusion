@@ -50,22 +50,53 @@ const MergePdfPage = () => {
         }
       });
 
-      const res = await fetch('/mergepdf/api/merge', {
+      const res = await fetch('/merge-pdf/api/merge', {
         method: 'POST',
         body: formData,
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to merge PDFs');
+        let errorMessage = 'Failed to merge PDFs';
+        try {
+          // Try to parse as JSON
+          const errorData = await res.clone().json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          try {
+            // If not JSON, try as text
+            const errorText = await res.clone().text();
+            errorMessage = errorText || errorMessage;
+          } catch {
+            // If all fails, keep the default message
+          }
+        }
+        throw new Error(errorMessage);
       }
 
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-
-      clearInterval(progressInterval);
-      setProgress(100);
-      setMergedPdfUrl(url);
+      // Check if the response is a PDF
+      const contentType = res.headers.get('Content-Type');
+      if (contentType && contentType.includes('application/pdf')) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        clearInterval(progressInterval);
+        setProgress(100);
+        setMergedPdfUrl(url);
+      } else {
+        // If not PDF, treat as error
+        let errorMessage = 'Failed to merge PDFs';
+        try {
+          const errorData = await res.clone().json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          try {
+            const errorText = await res.clone().text();
+            errorMessage = errorText || errorMessage;
+          } catch {
+            // If all fails, keep the default message
+          }
+        }
+        throw new Error(errorMessage);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
       alert(`Error: ${errorMessage}`);
