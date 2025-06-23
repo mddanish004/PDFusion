@@ -31,9 +31,10 @@ export async function POST(req: NextRequest) {
         compatibilityLevel: 1.4
       });
     } catch (err) {
+      console.error('Compression error:', err);
       await fs.unlink(inputPath);
       await fs.rmdir(tempDir);
-      return NextResponse.json({ error: 'Failed to compress PDF.' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to compress PDF: ' + (err instanceof Error ? err.message : String(err)) }, { status: 500 });
     }
 
     await fs.unlink(inputPath);
